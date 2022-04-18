@@ -5,14 +5,14 @@ import subprocess
 import datetime
 import argparse
 import json
+from shutil import which
 
-
-ffprobe = os.path.join(os.path.dirname(sys.argv[0])  + '/ffprobe')
-
-if not ffprobe.is_file():
-    print("Ffprobe not found. Please install")
-    exit 1
-
+def installed(program):
+    ''' Check if program is installed'''
+    if which(program):
+        return True
+    else:
+        return False
 
 def getVideoStreamDuration (videoObject):
     foundDuration = None
@@ -32,7 +32,7 @@ def generateTotalDuration(videoFileList):
     aggregatedVideoDurations = []
     for file in videoFileList:
 
-        stdout, stderr=subprocess.Popen([ffprobe, "-sexagesimal", "-print_format", "json", "-show_entries", "stream=codec_type,codec_name,duration,sample_rate,bit_rate", file, "-sexagesimal"] , universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate() 
+        stdout, stderr=subprocess.Popen(["ffprobe", "-sexagesimal", "-print_format", "json", "-show_entries", "stream=codec_type,codec_name,duration,sample_rate,bit_rate", file, "-sexagesimal"] , universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate() 
         videoMetaData = json.loads(stdout)
         videoDuration = getVideoStreamDuration(videoMetaData)
         aggregatedVideoDurations.append(videoDuration)
@@ -47,10 +47,13 @@ def generateTotalDuration(videoFileList):
     return datetime.datetime.strftime(datetime.datetime.strptime(str(sum),"%H:%M:%S.%f"), "%H:%M:%S.%f")        
 
 
-acceptedFormats = ('.avi', '.mp4', '.mp3', '.mxf', '.mov', '.wav', '.aif', '.mpg', '.xvid', '.dolby' )
+acceptedFormats = ('.avi', '.mp4', '.mp3', '.mxf', '.mov', '.wav', '.aif')
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="A program that generates the total duration (HH:MM:SS:MS) of a accepted media types."
+    if not installed("ffprobe"):
+        print("FFprobe Not Installed")
+        exit(1)
+    parser = argparse.ArgumentParser(description="A program that generates metadata summaries and can extract audio from video files")
     parser.add_argument("-f", "--files", nargs="*", help="Indivudal files or directories to process")
 
     args = parser.parse_args()
@@ -60,10 +63,10 @@ if __name__ == "__main__":
         if os.path.isdir(files):
             directoryFiles = sorted(os.listdir(files))
             for file in directoryFiles:
-                if file.endswith.lower()(acceptedFormats):
+                if file.endswith(acceptedFormats):
                     fileList.append(os.path.join(files, file))
         elif os.path.isfile(files):
-            if files.endswith.lower()(acceptedFormats):
+            if files.endswith(acceptedFormats):
                 fileList.append(os.path.abspath(files))
 
     sourceFiles = sorted(fileList)
