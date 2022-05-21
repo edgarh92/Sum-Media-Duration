@@ -7,34 +7,64 @@ import argparse
 import json
 from shutil import which
 
+class VideoProcessor():
+    def __init__(self, source_file):
+        self.video_file = source_file
+        self.video_object = None
+
+    def getVideoStreamDuration (self) -> str:
+        streamDuration = None
+        for i in range(len(self.video_object)):
+            
+            if self.video_object['streams'][i]["codec_type"] == "video":
+                streamDuration = str(self.video_object['streams'][i]["duration"])
+                break
+            elif self.video_object['streams'][i]["codec_type"] == "audio":
+                streamDuration = str(self.video_object['streams'][i]["duration"])
+                break
+        formatedDuration =  datetime.datetime.strftime(datetime.datetime.strptime(streamDuration.strip(), "%H:%M:%S.%f"), "%H:%M:%S:%f")
+        return formatedDuration
+
+    def parseVideoData(self) -> datetime:
+        '''Returns JSON of video duration requested from ffprobe'''
+
+        attributes_request = "stream=codec_type,duration,width,height"
+        
+        stdout, stderr = subprocess.Popen(
+            [
+                "ffprobe", "-sexagesimal", "-print_format", "json",
+                "-show_entries", attributes_request,
+                self.video_file, "-sexagesimal"] , 
+                universal_newlines=True, 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.PIPE
+                ).communicate() 
+        self.video_object = json.loads(stdout)
+        if self.video_object is not None:
+            videoDuration = self.getVideoStreamDuration()
+            if videoDuration:
+                return videoDuration
+            else:
+                print("No attributes found")
+                return None
+        else:
+            print("No attributes found")
+            return None
+
 def installed(program):
-    ''' Check if program is installed'''
+    ''' Check if a program is installed'''
     if which(program):
         return True
     else:
         return False
 
-def getVideoStreamDuration (videoObject):
-    foundDuration = None
-    streamDuration = None
-    for i in range(len(videoObject)):
-        
-        if videoObject['streams'][i]["codec_type"] == "video":
-            streamDuration = str(videoObject['streams'][i]["duration"])
-            break
-        elif videoObject['streams'][i]["codec_type"] == "audio":
-            streamDuration = str(videoObject['streams'][i]["duration"])
-            break
-    formatedDuration =  datetime.datetime.strftime(datetime.datetime.strptime(streamDuration.strip(), "%H:%M:%S.%f"), "%H:%M:%S:%f")
-    return formatedDuration
+
 
 def generateTotalDuration(videoFileList):
+    '''Get Duration and sum total'''
     aggregatedVideoDurations = []
-    for file in videoFileList:
-
-        stdout, stderr=subprocess.Popen(["ffprobe", "-sexagesimal", "-print_format", "json", "-show_entries", "stream=codec_type,codec_name,duration,sample_rate,bit_rate", file, "-sexagesimal"] , universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate() 
-        videoMetaData = json.loads(stdout)
-        videoDuration = getVideoStreamDuration(videoMetaData)
+    for file in videoFileList:        
+        videoDuration = VideoProcessor(file).parseVideoData()
         aggregatedVideoDurations.append(videoDuration)
 
 
@@ -58,15 +88,15 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    fileList = []
+    fileList = [] #Create list of files to process.
     for files in args.files:
         if os.path.isdir(files):
             directoryFiles = sorted(os.listdir(files))
             for file in directoryFiles:
-                if file.endswith(acceptedFormats):
+                if file.lower().endswith(acceptedFormats):
                     fileList.append(os.path.join(files, file))
         elif os.path.isfile(files):
-            if files.endswith(acceptedFormats):
+            if files.lower().endswith(acceptedFormats):
                 fileList.append(os.path.abspath(files))
 
     sourceFiles = sorted(fileList)
