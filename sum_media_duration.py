@@ -22,7 +22,7 @@ class VideoProcessor():
             elif self.video_object['streams'][i]["codec_type"] == "audio":
                 streamDuration = str(self.video_object['streams'][i]["duration"])
                 break
-        formatedDuration =  datetime.datetime.strftime(datetime.datetime.strptime(streamDuration.strip(), "%H:%M:%S.%f"), "%H:%M:%S:%f")
+        formatedDuration =  streamDuration.replace(".", ":")
         return formatedDuration
 
     def parseVideoData(self) -> datetime:
